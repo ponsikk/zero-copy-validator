@@ -1,0 +1,285 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  RUST_VERSION: "1.92"
+  JAVA_VERSION: "25"
+
+jobs:
+  # ============================================
+  # Job 1: Rust Tests & Build
+  # ============================================
+  rust-build:
+    name: Rust Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact: libjson_validator_ffi.so
+            platform: linux-x86_64
+          - os: macos-latest
+            artifact: libjson_validator_ffi.dylib
+            platform: darwin-x86_64
+          - os: windows-latest
+            artifact: json_validator_ffi.dll
+            platform: windows-x86_64
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: 💾 Cache Cargo dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            rust-ffi/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: 🔨 Build Rust library (debug)
+        working-directory: rust-ffi
+        run: cargo build --verbose
+
+      - name: 🧪 Run Rust tests
+        working-directory: rust-ffi
+        run: cargo test --verbose
+
+      - name: 🔨 Build Rust library (release)
+        working-directory: rust-ffi
+        run: cargo build --release --verbose
+
+      - name: 📊 Run Rust benchmarks
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: rust-ffi
+        run: cargo bench --no-run
+
+      - name: 📦 Upload native library artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-lib-${{ matrix.platform }}
+          path: rust-ffi/target/release/${{ matrix.artifact }}
+          retention-days: 7
+
+  # ============================================
+  # Job 2: Java Build & Test
+  # ============================================
+  java-build:
+    name: Java Build & Test
+    runs-on: ubuntu-latest
+    needs: rust-build
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'maven'
+
+      - name: 📥 Download Linux native library
+        uses: actions/download-artifact@v4
+        with:
+          name: native-lib-linux-x86_64
+          path: src/main/resources/native/
+
+      - name: 🔍 Verify native library
+        run: |
+          ls -la src/main/resources/native/
+          file src/main/resources/native/libjson_validator_ffi.so
+
+      - name: 🔨 Build with Maven
+        run: mvn clean compile --batch-mode --update-snapshots
+
+      - name: 🧪 Run Java tests
+        run: mvn test --batch-mode
+
+      - name: 📦 Package JAR
+        run: mvn package -DskipTests --batch-mode
+
+      - name: 📊 Test coverage
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: mvn jacoco:report
+
+      - name: 📤 Upload coverage to Codecov
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./target/site/jacoco/jacoco.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 📦 Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-validator-jar
+          path: target/*.jar
+          retention-days: 7
+
+  # ============================================
+  # Job 3: Docker Build & Test
+  # ============================================
+  docker-build:
+    name: Docker Build & Test
+    runs-on: ubuntu-latest
+    needs: [rust-build, java-build]
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 💾 Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: 🔨 Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: zero-copy-json:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          load: true
+
+      - name: 🧪 Test Docker image
+        run: |
+          docker run --rm zero-copy-json:test > output.txt
+          cat output.txt
+          if grep -q "Hello, World!" output.txt; then
+            echo "✅ Docker test passed!"
+          else
+            echo "❌ Docker test failed!"
+            exit 1
+          fi
+
+      - name: 📊 Analyze image size
+        run: |
+          docker images zero-copy-json:test
+          docker history zero-copy-json:test --human=true --no-trunc
+
+      - name: 🔄 Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+  # ============================================
+  # Job 4: Code Quality Checks
+  # ============================================
+  code-quality:
+    name: Code Quality & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: clippy, rustfmt
+
+      - name: 🔍 Rust format check
+        working-directory: rust-ffi
+        run: cargo fmt -- --check
+
+      - name: 📎 Rust clippy
+        working-directory: rust-ffi
+        run: cargo clippy -- -D warnings
+
+      - name: ☕ Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: 🔍 Java checkstyle (if configured)
+        continue-on-error: true
+        run: mvn checkstyle:check || echo "Checkstyle not configured"
+
+  # ============================================
+  # Job 5: Security Audit
+  # ============================================
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: 🔒 Rust security audit
+        working-directory: rust-ffi
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+      - name: 🔒 Maven dependency analysis
+        run: mvn dependency:analyze || echo "Dependency analysis completed"
+
+  # ============================================
+  # Job 6: Integration Summary
+  # ============================================
+  ci-summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [rust-build, java-build, docker-build, code-quality]
+    if: always()
+
+    steps:
+      - name: 📋 Check all jobs status
+        run: |
+          echo "Rust Build: ${{ needs.rust-build.result }}"
+          echo "Java Build: ${{ needs.java-build.result }}"
+          echo "Docker Build: ${{ needs.docker-build.result }}"
+          echo "Code Quality: ${{ needs.code-quality.result }}"
+
+      - name: ✅ All checks passed
+        if: |
+          needs.rust-build.result == 'success' &&
+          needs.java-build.result == 'success' &&
+          needs.docker-build.result == 'success' &&
+          needs.code-quality.result == 'success'
+        run: echo "🎉 All CI checks passed successfully!"
+
+      - name: ❌ Some checks failed
+        if: |
+          needs.rust-build.result != 'success' ||
+          needs.java-build.result != 'success' ||
+          needs.docker-build.result != 'success' ||
+          needs.code-quality.result != 'success'
+        run: |
+          echo "❌ Some CI checks failed. Please review the logs."
+          exit 1
