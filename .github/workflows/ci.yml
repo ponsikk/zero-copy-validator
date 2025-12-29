@@ -21,17 +21,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: ${{ github.ref == 'refs/heads/main' && fromJSON('["ubuntu-latest", "macos-latest", "macos-14", "windows-latest"]') || fromJSON('["ubuntu-latest", "macos-latest", "macos-14"]') }}
         include:
           - os: ubuntu-latest
             artifact: libjson_validator_ffi.so
             platform: linux-x86_64
+            target: x86_64-unknown-linux-gnu
           - os: macos-latest
             artifact: libjson_validator_ffi.dylib
             platform: darwin-x86_64
+            target: x86_64-apple-darwin
+          - os: macos-14
+            artifact: libjson_validator_ffi.dylib
+            platform: darwin-aarch64
+            target: aarch64-apple-darwin
           - os: windows-latest
             artifact: json_validator_ffi.dll
             platform: windows-x86_64
+            target: x86_64-pc-windows-msvc
 
     steps:
       - name: 📥 Checkout code

@@ -5,7 +5,7 @@ updates:
     directory: "/rust-ffi"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
+ Т
 
   # Maven dependencies
   - package-ecosystem: "maven"

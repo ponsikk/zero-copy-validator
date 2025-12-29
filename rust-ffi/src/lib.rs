@@ -1,5 +1,12 @@
+mod types;
+mod json_get;
+
 use std::slice;
 use std::str;
+use types::{max_json_size, ErrorCode};
+
+// Re-export json_get functions
+pub use json_get::{json_get_string, json_get_number, json_get_bool};
 
 /// Validates JSON string (zero-copy)
 ///
@@ -18,9 +25,9 @@ pub unsafe extern "C" fn json_validate(ptr: *const u8, len: usize) -> bool {
         return false;
     }
 
-    // Check for reasonable size (< 100MB)
-    const MAX_SIZE: usize = 100 * 1024 * 1024;
-    if len == 0 || len > MAX_SIZE {
+    // Check for reasonable size (configurable via MAX_JSON_SIZE env)
+    let max_size = max_json_size();
+    if len == 0 || len > max_size {
         return false;
     }
 
@@ -68,11 +75,12 @@ pub unsafe extern "C" fn json_validate_detailed(
         return -1;
     }
 
-    // Check for reasonable size
-    const MAX_SIZE: usize = 100 * 1024 * 1024;
-    if len == 0 || len > MAX_SIZE {
-        write_error(error_buf, error_buf_len, "JSON too large or empty");
-        return -3;
+    // Check for reasonable size (configurable via MAX_JSON_SIZE env)
+    let max_size = max_json_size();
+    if len == 0 || len > max_size {
+        let msg = format!("JSON too large or empty (max: {} bytes)", max_size);
+        write_error(error_buf, error_buf_len, &msg);
+        return ErrorCode::TooLarge.as_i32();
     }
 
     // Create slice from raw pointer
