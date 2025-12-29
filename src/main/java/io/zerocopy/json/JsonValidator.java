@@ -1,6 +1,6 @@
-package io.zerocopy;
+package io.zerocopy.json;
 
-import io.zerocopy.internal.NativeLib;
+import io.zerocopy.json.internal.NativeLib;
 
 import java.nio.charset.StandardCharsets;
 
@@ -13,17 +13,17 @@ import java.nio.charset.StandardCharsets;
  * <h2>Usage Examples:</h2>
  * <pre>{@code
  * // Simple validation
- * boolean isValid = JsonValidator.isValid("{\"key\":\"value\"}");
+ * boolean isValid = JsonValidator.validate("{\"key\":\"value\"}");
  *
  * // Detailed validation with error messages
- * ValidationResult result = JsonValidator.validate("{\"invalid json");
+ * ValidationResult result = JsonValidator.validateDetailed("{\"invalid json");
  * if (!result.isValid()) {
  *     System.out.println("Error: " + result.getErrorMessage());
  * }
  *
  * // Validate byte array (zero-copy)
  * byte[] jsonBytes = loadFromFile();
- * boolean isValid = JsonValidator.isValid(jsonBytes);
+ * boolean isValid = JsonValidator.validate(jsonBytes);
  * }</pre>
  *
  * <h2>Thread Safety:</h2>
@@ -41,14 +41,14 @@ public final class JsonValidator {
      * Validates JSON string.
      *
      * <p>This is the simplest method for quick validation checks.
-     * If you need error details, use {@link #validate(String)} instead.
+     * If you need error details, use {@link #validateDetailed(String)} instead.
      *
      * @param json the JSON string to validate
      * @return {@code true} if JSON is valid, {@code false} otherwise
      * @throws NullPointerException if json is null
-     * @see #validate(String)
+     * @see #validateDetailed(String)
      */
-    public static boolean isValid(String json) {
+    public static boolean validate(String json) {
         if (json == null) {
             throw new NullPointerException("JSON string cannot be null");
         }
@@ -60,7 +60,7 @@ public final class JsonValidator {
     /**
      * Validates JSON byte array (zero-copy).
      *
-     * <p>This method is more efficient than {@link #isValid(String)} as it
+     * <p>This method is more efficient than {@link #validate(String)} as it
      * avoids String → byte[] conversion. Use this when working with raw bytes
      * from files, network, etc.
      *
@@ -68,7 +68,7 @@ public final class JsonValidator {
      * @return {@code true} if JSON is valid, {@code false} otherwise
      * @throws NullPointerException if jsonBytes is null
      */
-    public static boolean isValid(byte[] jsonBytes) {
+    public static boolean validate(byte[] jsonBytes) {
         if (jsonBytes == null) {
             throw new NullPointerException("JSON bytes cannot be null");
         }
@@ -86,7 +86,7 @@ public final class JsonValidator {
      * @throws NullPointerException if json is null
      * @see ValidationResult
      */
-    public static ValidationResult validate(String json) {
+    public static ValidationResult validateDetailed(String json) {
         if (json == null) {
             throw new NullPointerException("JSON string cannot be null");
         }
@@ -102,7 +102,7 @@ public final class JsonValidator {
      * @return {@link ValidationResult} containing validation status and error details
      * @throws NullPointerException if jsonBytes is null
      */
-    public static ValidationResult validate(byte[] jsonBytes) {
+    public static ValidationResult validateDetailed(byte[] jsonBytes) {
         if (jsonBytes == null) {
             throw new NullPointerException("JSON bytes cannot be null");
         }
@@ -242,6 +242,177 @@ public final class JsonValidator {
         }
 
         return NativeLib.getBoolean(jsonBytes, path);
+    }
+
+    // ============================================
+    // Phase 2: Advanced Validators
+    // ============================================
+
+    /**
+     * Validates that a JSON field has the expected type.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param expectedType the expected JSON type
+     * @return true if field exists and has expected type
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateFieldType(String json, String path, JsonType expectedType) {
+        if (json == null || path == null || expectedType == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateFieldType(bytes, path, expectedType.getCode());
+    }
+
+    /**
+     * Validates field type (zero-copy byte array version).
+     */
+    public static boolean validateFieldType(byte[] jsonBytes, String path, JsonType expectedType) {
+        if (jsonBytes == null || path == null || expectedType == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateFieldType(jsonBytes, path, expectedType.getCode());
+    }
+
+    /**
+     * Checks if a JSON field exists.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @return true if field exists
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean fieldExists(String json, String path) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.fieldExists(bytes, path);
+    }
+
+    /**
+     * Checks if field exists (zero-copy byte array version).
+     */
+    public static boolean fieldExists(byte[] jsonBytes, String path) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.fieldExists(jsonBytes, path);
+    }
+
+    /**
+     * Checks if a JSON field is null.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @return true if field exists AND is null
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean fieldIsNull(String json, String path) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.fieldIsNull(bytes, path);
+    }
+
+    /**
+     * Checks if field is null (zero-copy byte array version).
+     */
+    public static boolean fieldIsNull(byte[] jsonBytes, String path) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.fieldIsNull(jsonBytes, path);
+    }
+
+    // ============================================
+    // Phase 2.2: Range Validators
+    // ============================================
+
+    /**
+     * Validates that a numeric field is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param min minimum value (inclusive)
+     * @param max maximum value (inclusive)
+     * @return true if field is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateNumberRange(String json, String path, double min, double max) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateNumberRange(bytes, path, min, max) == 0;
+    }
+
+    /**
+     * Validates number range (zero-copy byte array version).
+     */
+    public static boolean validateNumberRange(byte[] jsonBytes, String path, double min, double max) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateNumberRange(jsonBytes, path, min, max) == 0;
+    }
+
+    /**
+     * Validates that a string field length is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param minLength minimum string length (inclusive)
+     * @param maxLength maximum string length (inclusive)
+     * @return true if string length is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateStringLength(String json, String path, int minLength, int maxLength) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateStringLength(bytes, path, minLength, maxLength) == 0;
+    }
+
+    /**
+     * Validates string length (zero-copy byte array version).
+     */
+    public static boolean validateStringLength(byte[] jsonBytes, String path, int minLength, int maxLength) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateStringLength(jsonBytes, path, minLength, maxLength) == 0;
+    }
+
+    /**
+     * Validates that an array size is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param minItems minimum number of items (inclusive)
+     * @param maxItems maximum number of items (inclusive)
+     * @return true if array size is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateArraySize(String json, String path, int minItems, int maxItems) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateArraySize(bytes, path, minItems, maxItems) == 0;
+    }
+
+    /**
+     * Validates array size (zero-copy byte array version).
+     */
+    public static boolean validateArraySize(byte[] jsonBytes, String path, int minItems, int maxItems) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateArraySize(jsonBytes, path, minItems, maxItems) == 0;
     }
 
     /**

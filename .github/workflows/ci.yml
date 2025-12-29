@@ -2,7 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+      - 'feature/**'   # Все feature ветки
+      - 'laptop*'      # Все ветки начинающиеся с laptop
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -74,10 +78,15 @@ jobs:
         working-directory: rust-ffi
         run: cargo build --release --verbose
 
+      - name: 🎲 Generate benchmark test data
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: rust-ffi
+        run: cargo run --bin generate_test_data
+
       - name: 📊 Run Rust benchmarks
         if: matrix.os == 'ubuntu-latest'
         working-directory: rust-ffi
-        run: cargo bench --no-run
+        run: cargo bench --verbose
 
       - name: 📦 Upload native library artifact
         uses: actions/upload-artifact@v4
@@ -181,7 +190,7 @@ jobs:
         run: |
           docker run --rm zero-copy-json:test > output.txt
           cat output.txt
-          if grep -q "Hello, World!" output.txt; then
+          if grep -q "Demo completed" output.txt; then
             echo "✅ Docker test passed!"
           else
             echo "❌ Docker test failed!"

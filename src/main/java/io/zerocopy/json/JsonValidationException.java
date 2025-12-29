@@ -1,4 +1,4 @@
-package io.zerocopy;
+package io.zerocopy.json;
 
 /**
  * Exception thrown when JSON validation fails.
