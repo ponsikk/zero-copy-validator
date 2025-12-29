@@ -28,6 +28,16 @@ public final class NativeLib {
     private static final MethodHandle JSON_GET_NUMBER;
     private static final MethodHandle JSON_GET_BOOL;
 
+    // Phase 2: Validators
+    private static final MethodHandle JSON_VALIDATE_FIELD_TYPE;
+    private static final MethodHandle JSON_FIELD_EXISTS;
+    private static final MethodHandle JSON_FIELD_IS_NULL;
+
+    // Phase 2.2: Range Validators
+    private static final MethodHandle JSON_VALIDATE_NUMBER_RANGE;
+    private static final MethodHandle JSON_VALIDATE_STRING_LENGTH;
+    private static final MethodHandle JSON_VALIDATE_ARRAY_SIZE;
+
     private static final int ERROR_BUFFER_SIZE = 1024;
     private static final int STRING_BUFFER_SIZE = 4096;
 
@@ -104,6 +114,93 @@ public final class NativeLib {
                             ValueLayout.ADDRESS,        // path_ptr: *const u8
                             ValueLayout.JAVA_LONG,      // path_len: usize
                             ValueLayout.ADDRESS         // output: *mut bool
+                    )
+            );
+
+            // Phase 2: Validators
+            // json_validate_field_type(json_ptr, json_len, path_ptr, path_len, expected_type: i32) -> bool
+            JSON_VALIDATE_FIELD_TYPE = LINKER.downcallHandle(
+                    LIBRARY.find("json_validate_field_type").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_validate_field_type' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_BOOLEAN,   // return bool
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // path_len: usize
+                            ValueLayout.JAVA_INT        // expected_type: i32
+                    )
+            );
+
+            // json_field_exists(json_ptr, json_len, path_ptr, path_len) -> bool
+            JSON_FIELD_EXISTS = LINKER.downcallHandle(
+                    LIBRARY.find("json_field_exists").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_field_exists' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_BOOLEAN,   // return bool
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG       // path_len: usize
+                    )
+            );
+
+            // json_field_is_null(json_ptr, json_len, path_ptr, path_len) -> bool
+            JSON_FIELD_IS_NULL = LINKER.downcallHandle(
+                    LIBRARY.find("json_field_is_null").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_field_is_null' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_BOOLEAN,   // return bool
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG       // path_len: usize
+                    )
+            );
+
+            // Phase 2.2: Range Validators
+            // json_validate_number_range(json_ptr, json_len, path_ptr, path_len, min: f64, max: f64) -> i32
+            JSON_VALIDATE_NUMBER_RANGE = LINKER.downcallHandle(
+                    LIBRARY.find("json_validate_number_range").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_validate_number_range' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_INT,       // return i32
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // path_len: usize
+                            ValueLayout.JAVA_DOUBLE,    // min: f64
+                            ValueLayout.JAVA_DOUBLE     // max: f64
+                    )
+            );
+
+            // json_validate_string_length(json_ptr, json_len, path_ptr, path_len, min_len: usize, max_len: usize) -> i32
+            JSON_VALIDATE_STRING_LENGTH = LINKER.downcallHandle(
+                    LIBRARY.find("json_validate_string_length").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_validate_string_length' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_INT,       // return i32
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // path_len: usize
+                            ValueLayout.JAVA_LONG,      // min_len: usize
+                            ValueLayout.JAVA_LONG       // max_len: usize
+                    )
+            );
+
+            // json_validate_array_size(json_ptr, json_len, path_ptr, path_len, min_items: usize, max_items: usize) -> i32
+            JSON_VALIDATE_ARRAY_SIZE = LINKER.downcallHandle(
+                    LIBRARY.find("json_validate_array_size").orElseThrow(
+                            () -> new UnsatisfiedLinkError("Symbol 'json_validate_array_size' not found")),
+                    FunctionDescriptor.of(
+                            ValueLayout.JAVA_INT,       // return i32
+                            ValueLayout.ADDRESS,        // json_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // json_len: usize
+                            ValueLayout.ADDRESS,        // path_ptr: *const u8
+                            ValueLayout.JAVA_LONG,      // path_len: usize
+                            ValueLayout.JAVA_LONG,      // min_items: usize
+                            ValueLayout.JAVA_LONG       // max_items: usize
                     )
             );
 
@@ -350,6 +447,166 @@ public final class NativeLib {
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to load native library: " + e.getMessage(), e);
+        }
+    }
+
+    // ============================================
+    // Phase 2: Validators
+    // ============================================
+
+    /**
+     * Validates that a JSON field has the expected type.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query (e.g., "user.name")
+     * @param expectedType Expected JsonType ordinal
+     * @return true if field exists and has expected type
+     */
+    public static boolean validateFieldType(byte[] jsonBytes, String path, int expectedType) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (boolean) JSON_VALIDATE_FIELD_TYPE.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length,
+                    expectedType
+            );
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a JSON field exists at the given path.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query
+     * @return true if field exists (regardless of type or value)
+     */
+    public static boolean fieldExists(byte[] jsonBytes, String path) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (boolean) JSON_FIELD_EXISTS.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length
+            );
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    /**
+     * Checks if a JSON field is null.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query
+     * @return true if field exists AND is null
+     */
+    public static boolean fieldIsNull(byte[] jsonBytes, String path) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (boolean) JSON_FIELD_IS_NULL.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length
+            );
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
+    // ============================================
+    // Phase 2.2: Range Validators
+    // ============================================
+
+    /**
+     * Validates that a numeric field is within the specified range.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query
+     * @param min Minimum value (inclusive)
+     * @param max Maximum value (inclusive)
+     * @return 0 if valid, error code otherwise
+     */
+    public static int validateNumberRange(byte[] jsonBytes, String path, double min, double max) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (int) JSON_VALIDATE_NUMBER_RANGE.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length,
+                    min,
+                    max
+            );
+        } catch (Throwable e) {
+            return -1; // Generic error
+        }
+    }
+
+    /**
+     * Validates that a string field length is within the specified range.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query
+     * @param minLength Minimum string length (inclusive)
+     * @param maxLength Maximum string length (inclusive)
+     * @return 0 if valid, error code otherwise
+     */
+    public static int validateStringLength(byte[] jsonBytes, String path, int minLength, int maxLength) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (int) JSON_VALIDATE_STRING_LENGTH.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length,
+                    (long) minLength,
+                    (long) maxLength
+            );
+        } catch (Throwable e) {
+            return -1; // Generic error
+        }
+    }
+
+    /**
+     * Validates that an array size is within the specified range.
+     *
+     * @param jsonBytes UTF-8 encoded JSON data
+     * @param path JSONPath query
+     * @param minItems Minimum number of items (inclusive)
+     * @param maxItems Maximum number of items (inclusive)
+     * @return 0 if valid, error code otherwise
+     */
+    public static int validateArraySize(byte[] jsonBytes, String path, int minItems, int maxItems) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment jsonSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, jsonBytes);
+            MemorySegment pathSegment = arena.allocateFrom(ValueLayout.JAVA_BYTE, path.getBytes());
+
+            return (int) JSON_VALIDATE_ARRAY_SIZE.invoke(
+                    jsonSegment,
+                    (long) jsonBytes.length,
+                    pathSegment,
+                    (long) path.getBytes().length,
+                    (long) minItems,
+                    (long) maxItems
+            );
+        } catch (Throwable e) {
+            return -1; // Generic error
         }
     }
 }

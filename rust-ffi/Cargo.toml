@@ -6,7 +6,7 @@ authors = ["ponsikk"]
 description = "High-performance JSON validation library with FFI bindings"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 simd-json = "0.13"
@@ -22,3 +22,7 @@ strip = true            # Remove debug symbols
 
 [dev-dependencies]
 criterion = "0.5"       # For benchmarks
+
+[[bench]]
+name = "validators_bench"
+harness = false

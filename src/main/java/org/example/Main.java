@@ -90,5 +90,90 @@ public class Main {
 
         System.out.println("\n✅ Demo completed!");
         System.out.println("Version: " + JsonValidator.getVersion());
+
+        // Example 7: Phase 2 - Advanced Validators
+        System.out.println("\n=== Phase 2: Advanced Validators ===");
+
+        String validationJson = """
+            {
+                "user": {
+                    "name": "Alice",
+                    "age": 30,
+                    "email": "alice@example.com",
+                    "middleName": null
+                }
+            }
+            """;
+
+        // Type validation
+        boolean isString = JsonValidator.validateFieldType(validationJson, "user.name", io.zerocopy.json.JsonType.STRING);
+        boolean isNumber = JsonValidator.validateFieldType(validationJson, "user.age", io.zerocopy.json.JsonType.NUMBER);
+        System.out.println("Name is STRING: " + isString);
+        System.out.println("Age is NUMBER: " + isNumber);
+
+        // Field existence
+        boolean hasEmail = JsonValidator.fieldExists(validationJson, "user.email");
+        boolean hasPhone = JsonValidator.fieldExists(validationJson, "user.phone");
+        System.out.println("Has email field: " + hasEmail);
+        System.out.println("Has phone field: " + hasPhone);
+
+        // Null check
+        boolean middleNameIsNull = JsonValidator.fieldIsNull(validationJson, "user.middleName");
+        boolean nameIsNull = JsonValidator.fieldIsNull(validationJson, "user.name");
+        System.out.println("Middle name is null: " + middleNameIsNull);
+        System.out.println("Name is null: " + nameIsNull);
+
+        System.out.println("\n✅ Phase 2 validators working!");
+
+        // Example 8: Phase 2.2 - Range Validators
+        System.out.println("\n=== Phase 2.2: Range Validators ===");
+
+        String orderJson = """
+            {
+                "order": {
+                    "id": 12345,
+                    "customerAge": 25,
+                    "items": [
+                        {"name": "Laptop", "price": 999.99},
+                        {"name": "Mouse", "price": 29.99},
+                        {"name": "Keyboard", "price": 79.99}
+                    ],
+                    "notes": "Express shipping"
+                }
+            }
+            """;
+
+        // Validate number range (age should be 18-120)
+        boolean ageValid = JsonValidator.validateNumberRange(orderJson, "order.customerAge", 18, 120);
+        System.out.println("Customer age in valid range (18-120): " + ageValid);
+
+        // Validate number range (price should be 0-10000)
+        boolean priceValid = JsonValidator.validateNumberRange(orderJson, "order.items.0.price", 0, 10000);
+        System.out.println("First item price in valid range (0-10000): " + priceValid);
+
+        // Validate string length (notes should be 5-100 characters)
+        boolean notesValid = JsonValidator.validateStringLength(orderJson, "order.notes", 5, 100);
+        System.out.println("Notes length in valid range (5-100): " + notesValid);
+
+        // Validate array size (items should have 1-10 elements)
+        boolean itemsValid = JsonValidator.validateArraySize(orderJson, "order.items", 1, 10);
+        System.out.println("Items array size in valid range (1-10): " + itemsValid);
+
+        // Test with invalid data
+        String invalidOrderJson = """
+            {
+                "order": {
+                    "customerAge": 200,
+                    "items": []
+                }
+            }
+            """;
+
+        boolean invalidAge = JsonValidator.validateNumberRange(invalidOrderJson, "order.customerAge", 18, 120);
+        boolean emptyItems = JsonValidator.validateArraySize(invalidOrderJson, "order.items", 1, 10);
+        System.out.println("\nInvalid age (200) rejected: " + !invalidAge);
+        System.out.println("Empty items array rejected: " + !emptyItems);
+
+        System.out.println("\n✅ Phase 2.2 range validators working!");
     }
 }

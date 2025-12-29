@@ -43,6 +43,9 @@ rust-ffi/Cargo.lock
 **/*.rs.bk
 *.pdb
 
+### Benchmark test data (generated on-the-fly) ###
+rust-ffi/benches/data/*.json
+
 ### Docker ###
 .docker/
 

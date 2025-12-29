@@ -244,6 +244,177 @@ public final class JsonValidator {
         return NativeLib.getBoolean(jsonBytes, path);
     }
 
+    // ============================================
+    // Phase 2: Advanced Validators
+    // ============================================
+
+    /**
+     * Validates that a JSON field has the expected type.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param expectedType the expected JSON type
+     * @return true if field exists and has expected type
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateFieldType(String json, String path, JsonType expectedType) {
+        if (json == null || path == null || expectedType == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateFieldType(bytes, path, expectedType.getCode());
+    }
+
+    /**
+     * Validates field type (zero-copy byte array version).
+     */
+    public static boolean validateFieldType(byte[] jsonBytes, String path, JsonType expectedType) {
+        if (jsonBytes == null || path == null || expectedType == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateFieldType(jsonBytes, path, expectedType.getCode());
+    }
+
+    /**
+     * Checks if a JSON field exists.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @return true if field exists
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean fieldExists(String json, String path) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.fieldExists(bytes, path);
+    }
+
+    /**
+     * Checks if field exists (zero-copy byte array version).
+     */
+    public static boolean fieldExists(byte[] jsonBytes, String path) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.fieldExists(jsonBytes, path);
+    }
+
+    /**
+     * Checks if a JSON field is null.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @return true if field exists AND is null
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean fieldIsNull(String json, String path) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.fieldIsNull(bytes, path);
+    }
+
+    /**
+     * Checks if field is null (zero-copy byte array version).
+     */
+    public static boolean fieldIsNull(byte[] jsonBytes, String path) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.fieldIsNull(jsonBytes, path);
+    }
+
+    // ============================================
+    // Phase 2.2: Range Validators
+    // ============================================
+
+    /**
+     * Validates that a numeric field is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param min minimum value (inclusive)
+     * @param max maximum value (inclusive)
+     * @return true if field is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateNumberRange(String json, String path, double min, double max) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateNumberRange(bytes, path, min, max) == 0;
+    }
+
+    /**
+     * Validates number range (zero-copy byte array version).
+     */
+    public static boolean validateNumberRange(byte[] jsonBytes, String path, double min, double max) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateNumberRange(jsonBytes, path, min, max) == 0;
+    }
+
+    /**
+     * Validates that a string field length is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param minLength minimum string length (inclusive)
+     * @param maxLength maximum string length (inclusive)
+     * @return true if string length is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateStringLength(String json, String path, int minLength, int maxLength) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateStringLength(bytes, path, minLength, maxLength) == 0;
+    }
+
+    /**
+     * Validates string length (zero-copy byte array version).
+     */
+    public static boolean validateStringLength(byte[] jsonBytes, String path, int minLength, int maxLength) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateStringLength(jsonBytes, path, minLength, maxLength) == 0;
+    }
+
+    /**
+     * Validates that an array size is within the specified range.
+     *
+     * @param json the JSON string
+     * @param path the path to the field
+     * @param minItems minimum number of items (inclusive)
+     * @param maxItems maximum number of items (inclusive)
+     * @return true if array size is within range, false otherwise
+     * @throws NullPointerException if any argument is null
+     */
+    public static boolean validateArraySize(String json, String path, int minItems, int maxItems) {
+        if (json == null || path == null) {
+            throw new NullPointerException();
+        }
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        return NativeLib.validateArraySize(bytes, path, minItems, maxItems) == 0;
+    }
+
+    /**
+     * Validates array size (zero-copy byte array version).
+     */
+    public static boolean validateArraySize(byte[] jsonBytes, String path, int minItems, int maxItems) {
+        if (jsonBytes == null || path == null) {
+            throw new NullPointerException();
+        }
+        return NativeLib.validateArraySize(jsonBytes, path, minItems, maxItems) == 0;
+    }
+
     /**
      * Gets the version of the validator library.
      *

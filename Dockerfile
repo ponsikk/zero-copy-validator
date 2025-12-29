@@ -8,10 +8,11 @@ WORKDIR /build
 # Copy Rust project
 COPY rust-ffi/Cargo.toml rust-ffi/Cargo.lock* ./rust-ffi/
 COPY rust-ffi/src ./rust-ffi/src
+COPY rust-ffi/benches ./rust-ffi/benches
 
-# Build Rust library in release mode
+# Build ONLY the library (skip benches/bins) in release mode
 WORKDIR /build/rust-ffi
-RUN cargo build --release
+RUN cargo build --lib --release
 
 # Verify the library was built
 RUN ls -la target/release/ && \
