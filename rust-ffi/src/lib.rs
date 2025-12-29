@@ -1,12 +1,12 @@
-mod types;
 mod json_get;
+mod types;
 
 use std::slice;
 use std::str;
 use types::{max_json_size, ErrorCode};
 
 // Re-export json_get functions
-pub use json_get::{json_get_string, json_get_number, json_get_bool};
+pub use json_get::{json_get_bool, json_get_number, json_get_string};
 
 /// Validates JSON string (zero-copy)
 ///

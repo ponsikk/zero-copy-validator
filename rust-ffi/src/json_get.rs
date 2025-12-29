@@ -1,12 +1,7 @@
-/// Zero-copy JSON field extraction
-///
-/// This module provides high-performance field extraction without full JSON parsing.
-/// Uses SIMD-accelerated search for field names.
-
-use std::slice;
-use std::str;
 use crate::types::{max_json_size, ErrorCode, JsonType};
 use simd_json::prelude::*;
+use std::slice;
+use std::str;
 
 /// Extract string value from JSON by path (zero-copy)
 ///

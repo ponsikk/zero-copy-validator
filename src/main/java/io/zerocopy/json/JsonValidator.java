@@ -1,6 +1,6 @@
-package io.zerocopy;
+package io.zerocopy.json;
 
-import io.zerocopy.internal.NativeLib;
+import io.zerocopy.json.internal.NativeLib;
 
 import java.nio.charset.StandardCharsets;
 
@@ -13,17 +13,17 @@ import java.nio.charset.StandardCharsets;
  * <h2>Usage Examples:</h2>
  * <pre>{@code
  * // Simple validation
- * boolean isValid = JsonValidator.isValid("{\"key\":\"value\"}");
+ * boolean isValid = JsonValidator.validate("{\"key\":\"value\"}");
  *
  * // Detailed validation with error messages
- * ValidationResult result = JsonValidator.validate("{\"invalid json");
+ * ValidationResult result = JsonValidator.validateDetailed("{\"invalid json");
  * if (!result.isValid()) {
  *     System.out.println("Error: " + result.getErrorMessage());
  * }
  *
  * // Validate byte array (zero-copy)
  * byte[] jsonBytes = loadFromFile();
- * boolean isValid = JsonValidator.isValid(jsonBytes);
+ * boolean isValid = JsonValidator.validate(jsonBytes);
  * }</pre>
  *
  * <h2>Thread Safety:</h2>
@@ -41,14 +41,14 @@ public final class JsonValidator {
      * Validates JSON string.
      *
      * <p>This is the simplest method for quick validation checks.
-     * If you need error details, use {@link #validate(String)} instead.
+     * If you need error details, use {@link #validateDetailed(String)} instead.
      *
      * @param json the JSON string to validate
      * @return {@code true} if JSON is valid, {@code false} otherwise
      * @throws NullPointerException if json is null
-     * @see #validate(String)
+     * @see #validateDetailed(String)
      */
-    public static boolean isValid(String json) {
+    public static boolean validate(String json) {
         if (json == null) {
             throw new NullPointerException("JSON string cannot be null");
         }
@@ -60,7 +60,7 @@ public final class JsonValidator {
     /**
      * Validates JSON byte array (zero-copy).
      *
-     * <p>This method is more efficient than {@link #isValid(String)} as it
+     * <p>This method is more efficient than {@link #validate(String)} as it
      * avoids String → byte[] conversion. Use this when working with raw bytes
      * from files, network, etc.
      *
@@ -68,7 +68,7 @@ public final class JsonValidator {
      * @return {@code true} if JSON is valid, {@code false} otherwise
      * @throws NullPointerException if jsonBytes is null
      */
-    public static boolean isValid(byte[] jsonBytes) {
+    public static boolean validate(byte[] jsonBytes) {
         if (jsonBytes == null) {
             throw new NullPointerException("JSON bytes cannot be null");
         }
@@ -86,7 +86,7 @@ public final class JsonValidator {
      * @throws NullPointerException if json is null
      * @see ValidationResult
      */
-    public static ValidationResult validate(String json) {
+    public static ValidationResult validateDetailed(String json) {
         if (json == null) {
             throw new NullPointerException("JSON string cannot be null");
         }
@@ -102,7 +102,7 @@ public final class JsonValidator {
      * @return {@link ValidationResult} containing validation status and error details
      * @throws NullPointerException if jsonBytes is null
      */
-    public static ValidationResult validate(byte[] jsonBytes) {
+    public static ValidationResult validateDetailed(byte[] jsonBytes) {
         if (jsonBytes == null) {
             throw new NullPointerException("JSON bytes cannot be null");
         }

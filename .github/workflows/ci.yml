@@ -2,7 +2,11 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+      - 'feature/**'   # Все feature ветки
+      - 'laptop*'      # Все ветки начинающиеся с laptop
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -181,7 +185,7 @@ jobs:
         run: |
           docker run --rm zero-copy-json:test > output.txt
           cat output.txt
-          if grep -q "Hello, World!" output.txt; then
+          if grep -q "Demo completed" output.txt; then
             echo "✅ Docker test passed!"
           else
             echo "❌ Docker test failed!"

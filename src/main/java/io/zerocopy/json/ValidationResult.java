@@ -1,4 +1,4 @@
-package io.zerocopy;
+package io.zerocopy.json;
 
 import java.util.Objects;
 

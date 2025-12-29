@@ -1,7 +1,7 @@
 package org.example;
 
-import io.zerocopy.JsonValidator;
-import io.zerocopy.ValidationResult;
+import io.zerocopy.json.JsonValidator;
+import io.zerocopy.json.ValidationResult;
 
 /**
  * Demo application showing JsonValidator usage.
@@ -12,16 +12,16 @@ public class Main {
 
         // Example 1: Simple validation
         String validJson = "{\"name\":\"John\",\"age\":30,\"city\":\"New York\"}";
-        boolean isValid = JsonValidator.isValid(validJson);
+        boolean isValid = JsonValidator.validate(validJson);
         System.out.println("Valid JSON: " + isValid);
 
         // Example 2: Invalid JSON
         String invalidJson = "{\"name\":\"John\",\"age\":}";
-        isValid = JsonValidator.isValid(invalidJson);
+        isValid = JsonValidator.validate(invalidJson);
         System.out.println("Invalid JSON: " + isValid);
 
         // Example 3: Detailed validation
-        ValidationResult result = JsonValidator.validate(invalidJson);
+        ValidationResult result = JsonValidator.validateDetailed(invalidJson);
         System.out.println("\nDetailed validation:");
         System.out.println("  Valid: " + result.isValid());
         System.out.println("  Error code: " + result.getErrorCode());
@@ -41,7 +41,7 @@ public class Main {
                 }
             }
             """;
-        result = JsonValidator.validate(complexJson);
+        result = JsonValidator.validateDetailed(complexJson);
         System.out.println("\nComplex JSON validation: " + result.isValid());
 
         // Example 5: Zero-copy field extraction (FAST!)

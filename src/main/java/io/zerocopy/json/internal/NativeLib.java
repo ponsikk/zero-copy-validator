@@ -1,6 +1,6 @@
-package io.zerocopy.internal;
+package io.zerocopy.json.internal;
 
-import io.zerocopy.ValidationResult;
+import io.zerocopy.json.ValidationResult;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,7 +14,7 @@ import java.nio.file.StandardCopyOption;
  * Internal JNI wrapper for Rust native library.
  *
  * <p><b>WARNING:</b> This class is internal API and subject to change.
- * Do not use directly! Use {@link io.zerocopy.JsonValidator} instead.
+ * Do not use directly! Use {@link io.zerocopy.json.JsonValidator} instead.
  *
  * @since 0.1.0
  */
