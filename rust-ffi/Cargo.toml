@@ -21,7 +21,7 @@ panic = "abort"         # Smaller binary size
 strip = true            # Remove debug symbols
 
 [dev-dependencies]
-criterion = "0.5"       # For benchmarks
+criterion = "0.8"       # For benchmarks
 
 [[bench]]
 name = "validators_bench"
