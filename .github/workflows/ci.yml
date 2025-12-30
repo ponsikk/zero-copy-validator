@@ -54,7 +54,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: 💾 Cache Cargo dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -169,7 +169,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 💾 Cache Docker layers
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
