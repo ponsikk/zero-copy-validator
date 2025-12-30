@@ -20,13 +20,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Dependency Versions -->
-        <junit.version>5.10.1</junit.version>
-        <assertj.version>3.24.2</assertj.version>
+        <junit.version>6.0.1</junit.version>
+        <assertj.version>3.27.6</assertj.version>
 
         <!-- Plugin Versions -->
-        <maven-compiler-plugin.version>3.12.1</maven-compiler-plugin.version>
-        <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
-        <maven-jar-plugin.version>3.3.0</maven-jar-plugin.version>
+        <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
+        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+        <maven-jar-plugin.version>3.5.0</maven-jar-plugin.version>
     </properties>
 
     <dependencies>

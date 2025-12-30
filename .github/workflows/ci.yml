@@ -46,7 +46,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🦀 Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -54,7 +54,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: 💾 Cache Cargo dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
@@ -79,12 +79,12 @@ jobs:
         run: cargo build --release --verbose
 
       - name: 🎲 Generate benchmark test data
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
         working-directory: rust-ffi
         run: cargo run --bin generate_test_data
 
       - name: 📊 Run Rust benchmarks
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
         working-directory: rust-ffi
         run: cargo bench --verbose
 
@@ -105,10 +105,10 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -134,17 +134,18 @@ jobs:
       - name: 📦 Package JAR
         run: mvn package -DskipTests --batch-mode
 
-      - name: 📊 Test coverage
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: mvn jacoco:report
-
-      - name: 📤 Upload coverage to Codecov
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./target/site/jacoco/jacoco.xml
-          flags: unittests
-          name: codecov-umbrella
+      # TODO: Add JaCoCo code coverage when tests are available
+      # - name: 📊 Test coverage
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   run: mvn jacoco:report
+      #
+      # - name: 📤 Upload coverage to Codecov
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     files: ./target/site/jacoco/jacoco.xml
+      #     flags: unittests
+      #     name: codecov-umbrella
 
       - name: 📦 Upload JAR artifact
         uses: actions/upload-artifact@v4
@@ -163,13 +164,13 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🐳 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 💾 Cache Docker layers
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
@@ -177,7 +178,7 @@ jobs:
             ${{ runner.os }}-buildx-
 
       - name: 🔨 Build Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
@@ -216,7 +217,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🦀 Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -233,7 +234,7 @@ jobs:
         run: cargo clippy -- -D warnings
 
       - name: ☕ Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -251,7 +252,7 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: 🦀 Setup Rust
         uses: dtolnay/rust-toolchain@stable
