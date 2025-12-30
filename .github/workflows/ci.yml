@@ -79,12 +79,12 @@ jobs:
         run: cargo build --release --verbose
 
       - name: 🎲 Generate benchmark test data
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
         working-directory: rust-ffi
         run: cargo run --bin generate_test_data
 
       - name: 📊 Run Rust benchmarks
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
         working-directory: rust-ffi
         run: cargo bench --verbose
 
@@ -134,17 +134,18 @@ jobs:
       - name: 📦 Package JAR
         run: mvn package -DskipTests --batch-mode
 
-      - name: 📊 Test coverage
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: mvn jacoco:report
-
-      - name: 📤 Upload coverage to Codecov
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: codecov/codecov-action@v5
-        with:
-          files: ./target/site/jacoco/jacoco.xml
-          flags: unittests
-          name: codecov-umbrella
+      # TODO: Add JaCoCo code coverage when tests are available
+      # - name: 📊 Test coverage
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   run: mvn jacoco:report
+      #
+      # - name: 📤 Upload coverage to Codecov
+      #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     files: ./target/site/jacoco/jacoco.xml
+      #     flags: unittests
+      #     name: codecov-umbrella
 
       - name: 📦 Upload JAR artifact
         uses: actions/upload-artifact@v4
