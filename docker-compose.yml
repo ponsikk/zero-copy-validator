@@ -1,0 +1,35 @@
+services:
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zero-copy-json-validator
+    ports:
+      - "8080:8080"
+    environment:
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    volumes:
+      # Mount for hot reload during development (optional)
+      - ./target:/app/target
+    restart: unless-stopped
+
+  # Development environment with all tools
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: development
+    container_name: zero-copy-dev
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+      - cargo-cache:/usr/local/cargo/registry
+    working_dir: /workspace
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+
+volumes:
+  maven-cache:
+  cargo-cache:

@@ -1,0 +1,103 @@
+#!/bin/bash
+# ============================================
+# Pre-commit hook для Zero-Copy JSON Validator
+# ============================================
+# Автоматически запускается перед каждым коммитом
+
+set -e
+
+echo "🪝 Running pre-commit checks..."
+
+# Цвета
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# ============================================
+# 1. Проверка Rust кода
+# ============================================
+echo -e "${BLUE}🦀 Checking Rust code...${NC}"
+
+# Формат
+if ! (cd rust-ffi && cargo fmt -- --check); then
+    echo -e "${RED}❌ Rust code is not formatted!${NC}"
+    echo -e "${YELLOW}💡 Run: cargo fmt${NC}"
+    exit 1
+fi
+
+# Clippy
+if ! (cd rust-ffi && cargo clippy --all-targets --all-features -- -D warnings); then
+    echo -e "${RED}❌ Clippy found issues!${NC}"
+    echo -e "${YELLOW}💡 Run: cargo clippy --fix${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Rust checks passed${NC}"
+
+# ============================================
+# 2. Проверка Java кода
+# ============================================
+echo -e "${BLUE}☕ Checking Java code...${NC}"
+
+# Компиляция
+if ! mvn compile -q; then
+    echo -e "${RED}❌ Java compilation failed!${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Java checks passed${NC}"
+
+# ============================================
+# 3. Запуск тестов (быстрых)
+# ============================================
+echo -e "${BLUE}🧪 Running quick tests...${NC}"
+
+# Rust тесты
+if ! (cd rust-ffi && cargo test --lib); then
+    echo -e "${RED}❌ Rust tests failed!${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Tests passed${NC}"
+
+# ============================================
+# 4. Проверка файлов
+# ============================================
+echo -e "${BLUE}📁 Checking files...${NC}"
+
+# Проверка на большие файлы (>10MB)
+large_files=$(git diff --cached --name-only --diff-filter=ACM | xargs -I {} du -m {} 2>/dev/null | awk '$1 > 10' || true)
+if [ -n "$large_files" ]; then
+    echo -e "${RED}❌ Large files detected (>10MB):${NC}"
+    echo "$large_files"
+    echo -e "${YELLOW}💡 Consider using Git LFS for large files${NC}"
+    exit 1
+fi
+
+# Проверка на секреты (простая проверка)
+secrets_patterns=(
+    "password.*=.*['\"]"
+    "api_key.*=.*['\"]"
+    "secret.*=.*['\"]"
+    "token.*=.*['\"]"
+)
+
+for pattern in "${secrets_patterns[@]}"; do
+    if git diff --cached --name-only | xargs grep -i -E "$pattern" 2>/dev/null; then
+        echo -e "${RED}❌ Possible secret detected!${NC}"
+        echo -e "${YELLOW}💡 Please remove secrets from code${NC}"
+        exit 1
+    fi
+done
+
+echo -e "${GREEN}✅ File checks passed${NC}"
+
+# ============================================
+# Успех!
+# ============================================
+echo -e "${GREEN}🎉 All pre-commit checks passed!${NC}"
+echo ""
+
+exit 0

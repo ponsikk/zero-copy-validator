@@ -1,0 +1,57 @@
+# ========================================
+# Development Dockerfile
+# ========================================
+# This Dockerfile creates a development environment with:
+# - Rust toolchain
+# - Java 22 + Maven
+# - All build tools
+
+FROM rust:1.92-slim as rust-base
+
+# Install build essentials
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ========================================
+# Stage: Development
+# ========================================
+FROM rust-base as development
+
+# Install Java 22
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install Eclipse Temurin Java 25
+RUN wget -O- https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc && \
+    echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list && \
+    apt-get update && \
+    apt-get install -y temurin-25-jdk && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Maven
+ARG MAVEN_VERSION=3.9.6
+RUN wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz && \
+    tar xzf apache-maven-${MAVEN_VERSION}-bin.tar.gz -C /opt && \
+    ln -s /opt/apache-maven-${MAVEN_VERSION} /opt/maven && \
+    rm apache-maven-${MAVEN_VERSION}-bin.tar.gz
+
+ENV MAVEN_HOME=/opt/maven
+ENV PATH="${MAVEN_HOME}/bin:${PATH}"
+ENV JAVA_HOME=/usr/lib/jvm/temurin-25-jdk-amd64
+
+# Verify installations
+RUN java --version && \
+    mvn --version && \
+    cargo --version && \
+    rustc --version
+
+# Set working directory
+WORKDIR /workspace
+
+# Keep container running
+CMD ["/bin/bash"]
