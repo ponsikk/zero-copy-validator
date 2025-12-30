@@ -5,7 +5,6 @@ updates:
     directory: "/rust-ffi"
     schedule:
       interval: "weekly"
- Т
 
   # Maven dependencies
   - package-ecosystem: "maven"
