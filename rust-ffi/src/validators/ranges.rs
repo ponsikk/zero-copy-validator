@@ -2,8 +2,9 @@
 ///
 /// This module provides validators for checking numeric ranges, string lengths,
 /// and array sizes without parsing the entire JSON document (zero-copy).
+use crate::json_get::extract_field_hybrid; // OPTIMIZATION: Shared hybrid extraction
 use crate::types::{max_json_size, ErrorCode};
-use simd_json::prelude::*;
+use ffi_safety_macro::ffi_safe_with_error;
 use std::slice;
 use std::str;
 
@@ -23,6 +24,7 @@ use std::str;
 /// * `2` - Path not found
 /// * `3` - Type mismatch (not a number)
 /// * `4` - Out of range
+#[ffi_safe_with_error(-1)]
 #[no_mangle]
 pub unsafe extern "C" fn json_validate_number_range(
     json_ptr: *const u8,
@@ -57,17 +59,10 @@ pub unsafe extern "C" fn json_validate_number_range(
         Err(_) => return ErrorCode::InvalidUtf8.as_i32(),
     };
 
-    // Parse JSON
-    let mut bytes = json_str.as_bytes().to_vec();
-    let value = match simd_json::to_owned_value(&mut bytes) {
+    // OPTIMIZATION: Use shared extract_field_hybrid (avoid parsing whole JSON)
+    let extracted = match extract_field_hybrid(json_str, path_str) {
         Ok(v) => v,
-        Err(_) => return ErrorCode::SyntaxError.as_i32(),
-    };
-
-    // Extract field by path
-    let extracted = match extract_value_by_path(&value, path_str) {
-        Some(v) => v,
-        None => return ErrorCode::PathNotFound.as_i32(),
+        Err(e) => return e.as_i32(),
     };
 
     // Get number value
@@ -97,6 +92,7 @@ pub unsafe extern "C" fn json_validate_number_range(
 /// # Returns
 /// * `0` - Success, string length is within range
 /// * Error codes same as json_validate_number_range
+#[ffi_safe_with_error(-1)]
 #[no_mangle]
 pub unsafe extern "C" fn json_validate_string_length(
     json_ptr: *const u8,
@@ -131,17 +127,10 @@ pub unsafe extern "C" fn json_validate_string_length(
         Err(_) => return ErrorCode::InvalidUtf8.as_i32(),
     };
 
-    // Parse JSON
-    let mut bytes = json_str.as_bytes().to_vec();
-    let value = match simd_json::to_owned_value(&mut bytes) {
+    // OPTIMIZATION: Use shared extract_field_hybrid (avoid parsing whole JSON)
+    let extracted = match extract_field_hybrid(json_str, path_str) {
         Ok(v) => v,
-        Err(_) => return ErrorCode::SyntaxError.as_i32(),
-    };
-
-    // Extract field by path
-    let extracted = match extract_value_by_path(&value, path_str) {
-        Some(v) => v,
-        None => return ErrorCode::PathNotFound.as_i32(),
+        Err(e) => return e.as_i32(),
     };
 
     // Get string value
@@ -167,6 +156,7 @@ pub unsafe extern "C" fn json_validate_string_length(
 /// # Returns
 /// * `0` - Success, array size is within range
 /// * Error codes same as json_validate_number_range
+#[ffi_safe_with_error(-1)]
 #[no_mangle]
 pub unsafe extern "C" fn json_validate_array_size(
     json_ptr: *const u8,
@@ -201,17 +191,10 @@ pub unsafe extern "C" fn json_validate_array_size(
         Err(_) => return ErrorCode::InvalidUtf8.as_i32(),
     };
 
-    // Parse JSON
-    let mut bytes = json_str.as_bytes().to_vec();
-    let value = match simd_json::to_owned_value(&mut bytes) {
+    // OPTIMIZATION: Use shared extract_field_hybrid (avoid parsing whole JSON)
+    let extracted = match extract_field_hybrid(json_str, path_str) {
         Ok(v) => v,
-        Err(_) => return ErrorCode::SyntaxError.as_i32(),
-    };
-
-    // Extract field by path
-    let extracted = match extract_value_by_path(&value, path_str) {
-        Some(v) => v,
-        None => return ErrorCode::PathNotFound.as_i32(),
+        Err(e) => return e.as_i32(),
     };
 
     // Check if it's an array
@@ -227,38 +210,6 @@ pub unsafe extern "C" fn json_validate_array_size(
     }
 
     ErrorCode::Ok.as_i32()
-}
-
-// ============================================
-// Helper Functions
-// ============================================
-
-/// Extract value from JSON by simple path
-fn extract_value_by_path<'a>(
-    value: &'a simd_json::OwnedValue,
-    path: &str,
-) -> Option<&'a simd_json::OwnedValue> {
-    // Remove leading $ if present (JSONPath style)
-    let clean_path = path.strip_prefix("$.").unwrap_or(path);
-    let clean_path = clean_path.strip_prefix('.').unwrap_or(clean_path);
-
-    // Split path by dots
-    let parts: Vec<&str> = clean_path.split('.').collect();
-
-    let mut current = value;
-
-    for part in parts {
-        // Check if it's an array index
-        if let Ok(index) = part.parse::<usize>() {
-            // Access array element by index
-            current = current.get_idx(index)?;
-        } else {
-            // Access object field by key
-            current = current.get(part)?;
-        }
-    }
-
-    Some(current)
 }
 
 // ============================================

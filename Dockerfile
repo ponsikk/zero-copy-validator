@@ -9,6 +9,7 @@ WORKDIR /build
 COPY rust-ffi/Cargo.toml rust-ffi/Cargo.lock* ./rust-ffi/
 COPY rust-ffi/src ./rust-ffi/src
 COPY rust-ffi/benches ./rust-ffi/benches
+COPY rust-ffi/ffi-safety-macro ./rust-ffi/ffi-safety-macro
 
 # Build ONLY the library (skip benches/bins) in release mode
 WORKDIR /build/rust-ffi
@@ -32,9 +33,12 @@ RUN mvn dependency:go-offline -B
 # Copy source code
 COPY src ./src
 
-# Copy Rust library from previous stage
+# Create native library directory structure
+RUN mkdir -p src/main/resources/native/linux-x86_64
+
+# Copy Rust library from previous stage into correct platform directory
 COPY --from=rust-builder /build/rust-ffi/target/release/libjson_validator_ffi.so \
-    src/main/resources/native/libjson_validator_ffi.so
+    src/main/resources/native/linux-x86_64/libjson_validator_ffi.so
 
 # Build Java project
 RUN mvn clean package -DskipTests

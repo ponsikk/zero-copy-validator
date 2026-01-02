@@ -4,9 +4,9 @@ use simd_json::prelude::*;
 use std::fs;
 
 // Test JSON data
-const SIMPLE_JSON: &str = r#"{"name":"John","age":30,"email":"john@example.com","active":true}"#;
-const NESTED_JSON: &str = r#"{"user":{"name":"Alice","age":25,"email":"alice@example.com","profile":{"bio":"Software Engineer","skills":["Rust","Java","Python"]}}}"#;
-const LARGE_JSON: &str = r#"{"users":[{"id":1,"name":"User1","age":25,"email":"user1@example.com"},{"id":2,"name":"User2","age":30,"email":"user2@example.com"},{"id":3,"name":"User3","age":35,"email":"user3@example.com"},{"id":4,"name":"User4","age":40,"email":"user4@example.com"},{"id":5,"name":"User5","age":45,"email":"user5@example.com"}],"metadata":{"total":5,"page":1}}"#;
+const SIMPLE_JSON: &str = r#"{"name":"John","age":30,"email":"john@example.com","active":true,"website":"https://example.com","phone":"+1-234-567-8900","ip":"192.168.1.1","userId":"550e8400-e29b-41d4-a716-446655440000","createdAt":"2024-12-30T10:30:00Z"}"#;
+const NESTED_JSON: &str = r#"{"user":{"name":"Alice","age":25,"email":"alice@example.com","profile":{"bio":"Software Engineer","skills":["Rust","Java","Python"],"website":"https://alice.dev","phone":"+44-20-7946-0958","lastLogin":"2024-12-29T15:45:30Z"}}}"#;
+const LARGE_JSON: &str = r#"{"users":[{"id":1,"name":"User1","age":25,"email":"user1@example.com","ip":"10.0.0.1"},{"id":2,"name":"User2","age":30,"email":"user2@example.com","ip":"10.0.0.2"},{"id":3,"name":"User3","age":35,"email":"user3@example.com","ip":"10.0.0.3"},{"id":4,"name":"User4","age":40,"email":"user4@example.com","ip":"10.0.0.4"},{"id":5,"name":"User5","age":45,"email":"user5@example.com","ip":"10.0.0.5"}],"metadata":{"total":5,"page":1}}"#;
 
 // Helper to create raw pointers for FFI
 fn prepare_json(json: &str) -> (*const u8, usize) {
@@ -337,6 +337,445 @@ fn bench_file_field_extraction(c: &mut Criterion) {
     group.finish();
 }
 
+// ============================================
+// Phase 2.3: Format Validators Benchmarks
+// ============================================
+
+// Benchmark: Email validation
+fn bench_validate_email(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_email");
+
+    group.bench_function("valid_email_simple", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("email");
+        b.iter(|| unsafe {
+            black_box(json_validate_email(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.bench_function("valid_email_nested", |b| {
+        let (json_ptr, json_len) = prepare_json(NESTED_JSON);
+        let (path_ptr, path_len) = prepare_path("user.email");
+        b.iter(|| unsafe {
+            black_box(json_validate_email(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.bench_function("invalid_email", |b| {
+        let invalid_json = r#"{"email":"not-an-email"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("email");
+        b.iter(|| unsafe {
+            black_box(json_validate_email(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.finish();
+}
+
+// Benchmark: URL validation
+fn bench_validate_url(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_url");
+
+    group.bench_function("valid_url_https", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("website");
+        b.iter(|| unsafe { black_box(json_validate_url(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.bench_function("valid_url_nested", |b| {
+        let (json_ptr, json_len) = prepare_json(NESTED_JSON);
+        let (path_ptr, path_len) = prepare_path("user.profile.website");
+        b.iter(|| unsafe { black_box(json_validate_url(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.bench_function("invalid_url", |b| {
+        let invalid_json = r#"{"website":"not-a-url"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("website");
+        b.iter(|| unsafe { black_box(json_validate_url(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.finish();
+}
+
+// Benchmark: ISO Date validation
+fn bench_validate_iso_date(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_iso_date");
+
+    group.bench_function("valid_datetime", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("createdAt");
+        b.iter(|| unsafe {
+            black_box(json_validate_iso_date(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_datetime_nested", |b| {
+        let (json_ptr, json_len) = prepare_json(NESTED_JSON);
+        let (path_ptr, path_len) = prepare_path("user.profile.lastLogin");
+        b.iter(|| unsafe {
+            black_box(json_validate_iso_date(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_date_only", |b| {
+        let date_json = r#"{"date":"2024-12-30"}"#;
+        let (json_ptr, json_len) = prepare_json(date_json);
+        let (path_ptr, path_len) = prepare_path("date");
+        b.iter(|| unsafe {
+            black_box(json_validate_iso_date(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("invalid_date", |b| {
+        let invalid_json = r#"{"date":"30-12-2024"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("date");
+        b.iter(|| unsafe {
+            black_box(json_validate_iso_date(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.finish();
+}
+
+// Benchmark: UUID validation
+fn bench_validate_uuid(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_uuid");
+
+    group.bench_function("valid_uuid_v4", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("userId");
+        b.iter(|| unsafe { black_box(json_validate_uuid(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.bench_function("valid_uuid_no_hyphens", |b| {
+        let uuid_json = r#"{"uuid":"550e8400e29b41d4a716446655440000"}"#;
+        let (json_ptr, json_len) = prepare_json(uuid_json);
+        let (path_ptr, path_len) = prepare_path("uuid");
+        b.iter(|| unsafe { black_box(json_validate_uuid(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.bench_function("invalid_uuid", |b| {
+        let invalid_json = r#"{"uuid":"not-a-uuid"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("uuid");
+        b.iter(|| unsafe { black_box(json_validate_uuid(json_ptr, json_len, path_ptr, path_len)) });
+    });
+
+    group.finish();
+}
+
+// Benchmark: Phone Number validation
+fn bench_validate_phone_number(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_phone_number");
+
+    group.bench_function("valid_phone_e164", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("phone");
+        b.iter(|| unsafe {
+            black_box(json_validate_phone_number(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_phone_nested", |b| {
+        let (json_ptr, json_len) = prepare_json(NESTED_JSON);
+        let (path_ptr, path_len) = prepare_path("user.profile.phone");
+        b.iter(|| unsafe {
+            black_box(json_validate_phone_number(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_phone_plain", |b| {
+        let phone_json = r#"{"phone":"+12345678900"}"#;
+        let (json_ptr, json_len) = prepare_json(phone_json);
+        let (path_ptr, path_len) = prepare_path("phone");
+        b.iter(|| unsafe {
+            black_box(json_validate_phone_number(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("invalid_phone", |b| {
+        let invalid_json = r#"{"phone":"123"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("phone");
+        b.iter(|| unsafe {
+            black_box(json_validate_phone_number(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.finish();
+}
+
+// Benchmark: IP Address validation
+fn bench_validate_ip_address(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_ip_address");
+
+    group.bench_function("valid_ipv4_simple", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("ip");
+        b.iter(|| unsafe {
+            black_box(json_validate_ip_address(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_ipv4_array", |b| {
+        let (json_ptr, json_len) = prepare_json(LARGE_JSON);
+        let (path_ptr, path_len) = prepare_path("users.0.ip");
+        b.iter(|| unsafe {
+            black_box(json_validate_ip_address(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_ipv6", |b| {
+        let ipv6_json = r#"{"ip":"2001:0db8:85a3::8a2e:0370:7334"}"#;
+        let (json_ptr, json_len) = prepare_json(ipv6_json);
+        let (path_ptr, path_len) = prepare_path("ip");
+        b.iter(|| unsafe {
+            black_box(json_validate_ip_address(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("valid_ipv6_compressed", |b| {
+        let ipv6_json = r#"{"ip":"::1"}"#;
+        let (json_ptr, json_len) = prepare_json(ipv6_json);
+        let (path_ptr, path_len) = prepare_path("ip");
+        b.iter(|| unsafe {
+            black_box(json_validate_ip_address(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.bench_function("invalid_ip", |b| {
+        let invalid_json = r#"{"ip":"999.999.999.999"}"#;
+        let (json_ptr, json_len) = prepare_json(invalid_json);
+        let (path_ptr, path_len) = prepare_path("ip");
+        b.iter(|| unsafe {
+            black_box(json_validate_ip_address(
+                json_ptr, json_len, path_ptr, path_len,
+            ))
+        });
+    });
+
+    group.finish();
+}
+
+// ============================================
+// NEW: Detailed Validation with Location Info
+// ============================================
+
+// Benchmark: json_validate_with_location (returns line/column/byte_offset)
+fn bench_validate_with_location(c: &mut Criterion) {
+    let mut group = c.benchmark_group("validate_with_location");
+
+    group.bench_function("valid_simple", |b| {
+        let (ptr, len) = prepare_json(SIMPLE_JSON);
+        let mut error_out = json_validator_ffi::types::DetailedError {
+            code: 0,
+            line: 0,
+            column: 0,
+            byte_offset: 0,
+        };
+        b.iter(|| unsafe {
+            json_validate_with_location(ptr, len, &mut error_out as *mut _);
+            black_box(&error_out)
+        });
+    });
+
+    group.bench_function("invalid_json_with_location", |b| {
+        let invalid_json = r#"{"name":"John","age":30,"broken"}"#;
+        let (ptr, len) = prepare_json(invalid_json);
+        let mut error_out = json_validator_ffi::types::DetailedError {
+            code: 0,
+            line: 0,
+            column: 0,
+            byte_offset: 0,
+        };
+        b.iter(|| unsafe {
+            json_validate_with_location(ptr, len, &mut error_out as *mut _);
+            black_box(&error_out)
+        });
+    });
+
+    group.bench_function("valid_nested", |b| {
+        let (ptr, len) = prepare_json(NESTED_JSON);
+        let mut error_out = json_validator_ffi::types::DetailedError {
+            code: 0,
+            line: 0,
+            column: 0,
+            byte_offset: 0,
+        };
+        b.iter(|| unsafe {
+            json_validate_with_location(ptr, len, &mut error_out as *mut _);
+            black_box(&error_out)
+        });
+    });
+
+    group.finish();
+}
+
+// ============================================
+// NEW: Dynamic Buffer String Extraction
+// ============================================
+
+// Benchmark: json_get_string_size (2-step approach for dynamic buffer)
+fn bench_get_string_size(c: &mut Criterion) {
+    let mut group = c.benchmark_group("get_string_size");
+
+    group.bench_function("simple_string_size", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("name");
+        b.iter(|| unsafe {
+            black_box(json_get_string_size(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.bench_function("nested_string_size", |b| {
+        let (json_ptr, json_len) = prepare_json(NESTED_JSON);
+        let (path_ptr, path_len) = prepare_path("user.profile.bio");
+        b.iter(|| unsafe {
+            black_box(json_get_string_size(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.bench_function("email_string_size", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("email");
+        b.iter(|| unsafe {
+            black_box(json_get_string_size(json_ptr, json_len, path_ptr, path_len))
+        });
+    });
+
+    group.finish();
+}
+
+// Benchmark: 2-step dynamic buffer extraction (get_string_size + get_string)
+fn bench_dynamic_string_extraction(c: &mut Criterion) {
+    let mut group = c.benchmark_group("dynamic_string_extraction");
+
+    group.bench_function("two_step_simple", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("name");
+        b.iter(|| unsafe {
+            // Step 1: Get size
+            let size = json_get_string_size(json_ptr, json_len, path_ptr, path_len);
+            if size > 0 {
+                // Step 2: Allocate exact buffer and extract
+                let mut buffer = vec![0u8; (size + 1) as usize];
+                json_get_string(
+                    json_ptr,
+                    json_len,
+                    path_ptr,
+                    path_len,
+                    buffer.as_mut_ptr(),
+                    buffer.len(),
+                );
+                black_box(buffer)
+            } else {
+                black_box(size)
+            }
+        });
+    });
+
+    group.bench_function("two_step_long_string", |b| {
+        // JSON with a long string (>256 chars to test dynamic buffer benefit)
+        let long_json = r#"{"description":"This is a very long description that exceeds the typical fixed buffer size. It contains multiple sentences and lots of information about the product, its features, benefits, and use cases. This string is intentionally long to benchmark the dynamic buffer allocation approach versus a fixed-size buffer approach. The dynamic approach should handle this without any issues or truncation."}"#;
+        let (json_ptr, json_len) = prepare_json(long_json);
+        let (path_ptr, path_len) = prepare_path("description");
+        b.iter(|| unsafe {
+            let size = json_get_string_size(json_ptr, json_len, path_ptr, path_len);
+            if size > 0 {
+                let mut buffer = vec![0u8; (size + 1) as usize];
+                json_get_string(
+                    json_ptr,
+                    json_len,
+                    path_ptr,
+                    path_len,
+                    buffer.as_mut_ptr(),
+                    buffer.len(),
+                );
+                black_box(buffer)
+            } else {
+                black_box(size)
+            }
+        });
+    });
+
+    group.finish();
+}
+
+// Comparison: Fixed buffer vs Dynamic buffer (old vs new approach)
+fn bench_buffer_comparison(c: &mut Criterion) {
+    let mut group = c.benchmark_group("buffer_comparison");
+
+    // OLD: Fixed 4KB buffer (always allocates 4KB even for small strings)
+    group.bench_function("fixed_buffer_4kb", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("name");
+        let mut buffer = [0u8; 4096]; // Fixed 4KB buffer
+        b.iter(|| unsafe {
+            json_get_string(
+                json_ptr,
+                json_len,
+                path_ptr,
+                path_len,
+                buffer.as_mut_ptr(),
+                buffer.len(),
+            );
+            black_box(&buffer)
+        });
+    });
+
+    // NEW: Dynamic buffer (allocates exact size needed)
+    group.bench_function("dynamic_buffer", |b| {
+        let (json_ptr, json_len) = prepare_json(SIMPLE_JSON);
+        let (path_ptr, path_len) = prepare_path("name");
+        b.iter(|| unsafe {
+            let size = json_get_string_size(json_ptr, json_len, path_ptr, path_len);
+            if size > 0 {
+                let mut buffer = vec![0u8; (size + 1) as usize];
+                json_get_string(
+                    json_ptr,
+                    json_len,
+                    path_ptr,
+                    path_len,
+                    buffer.as_mut_ptr(),
+                    buffer.len(),
+                );
+                black_box(buffer)
+            } else {
+                black_box(size)
+            }
+        });
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_json_validate,
@@ -348,6 +787,18 @@ criterion_group!(
     bench_field_extraction,
     bench_comparison,
     bench_file_validation,
-    bench_file_field_extraction
+    bench_file_field_extraction,
+    // Phase 2.3: Format Validators
+    bench_validate_email,
+    bench_validate_url,
+    bench_validate_iso_date,
+    bench_validate_uuid,
+    bench_validate_phone_number,
+    bench_validate_ip_address,
+    // NEW: Zero-copy integration features
+    bench_validate_with_location,
+    bench_get_string_size,
+    bench_dynamic_string_extraction,
+    bench_buffer_comparison
 );
 criterion_main!(benches);

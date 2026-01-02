@@ -42,6 +42,8 @@ pub enum ErrorCode {
     PathNotFound = 2,
     /// Type mismatch (e.g., expected string, got number)
     TypeMismatch = 3,
+    /// Format invalid (e.g., invalid email, URL, date, UUID)
+    FormatInvalid = 4,
 }
 
 /// JSON value types
@@ -60,5 +62,60 @@ impl ErrorCode {
     /// Convert error code to i32
     pub fn as_i32(self) -> i32 {
         self as i32
+    }
+}
+
+/// Detailed error information with line/column location
+///
+/// This struct is returned by validation functions to provide
+/// precise error location information for better developer experience.
+///
+/// # C Representation
+/// This struct is `#[repr(C)]` to ensure stable memory layout across FFI boundary.
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct DetailedError {
+    /// Error code (0 = success, negative = system error, positive = validation error)
+    pub code: i32,
+
+    /// Line number where error occurred (1-indexed, 0 if unknown)
+    pub line: u32,
+
+    /// Column number where error occurred (1-indexed, 0 if unknown)
+    pub column: u32,
+
+    /// Offset in bytes from start of JSON (0 if unknown)
+    pub byte_offset: usize,
+}
+
+impl DetailedError {
+    /// Create success result (no error)
+    pub const fn ok() -> Self {
+        Self {
+            code: 0,
+            line: 0,
+            column: 0,
+            byte_offset: 0,
+        }
+    }
+
+    /// Create error result with location info
+    pub const fn error(code: ErrorCode, line: u32, column: u32, offset: usize) -> Self {
+        Self {
+            code: code as i32,
+            line,
+            column,
+            byte_offset: offset,
+        }
+    }
+
+    /// Create error result without location info
+    pub const fn error_simple(code: ErrorCode) -> Self {
+        Self {
+            code: code as i32,
+            line: 0,
+            column: 0,
+            byte_offset: 0,
+        }
     }
 }
