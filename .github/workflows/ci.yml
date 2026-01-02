@@ -118,12 +118,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: native-lib-linux-x86_64
-          path: src/main/resources/native/
+          path: src/main/resources/native/linux-x86_64/
 
       - name: 🔍 Verify native library
         run: |
-          ls -la src/main/resources/native/
-          file src/main/resources/native/libjson_validator_ffi.so
+          ls -la src/main/resources/native/linux-x86_64/
+          file src/main/resources/native/linux-x86_64/libjson_validator_ffi.so
 
       - name: 🔨 Build with Maven
         run: mvn clean compile --batch-mode --update-snapshots

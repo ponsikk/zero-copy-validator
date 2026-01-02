@@ -78,6 +78,11 @@ public final class ValidationResult {
     private final ErrorCode errorCode;
     private final String errorMessage;
 
+    // Error location information (0 if unknown)
+    private final int line;
+    private final int column;
+    private final long byteOffset;
+
     /**
      * Creates a validation result.
      *
@@ -85,9 +90,25 @@ public final class ValidationResult {
      * @param errorMessage the error message (empty string for success)
      */
     public ValidationResult(int errorCode, String errorMessage) {
+        this(errorCode, errorMessage, 0, 0, 0);
+    }
+
+    /**
+     * Creates a validation result with error location.
+     *
+     * @param errorCode the error code (0 for success)
+     * @param errorMessage the error message (empty string for success)
+     * @param line line number (1-indexed, 0 if unknown)
+     * @param column column number (1-indexed, 0 if unknown)
+     * @param byteOffset byte offset from start (0 if unknown)
+     */
+    public ValidationResult(int errorCode, String errorMessage, int line, int column, long byteOffset) {
         this.errorCode = ErrorCode.fromCode(errorCode);
         this.valid = (errorCode == 0);
-        this.errorMessage = errorMessage != null ? errorMessage : "";
+        this.errorMessage = errorMessage;
+        this.line = line;
+        this.column = column;
+        this.byteOffset = byteOffset;
     }
 
     /**
@@ -100,11 +121,20 @@ public final class ValidationResult {
     }
 
     /**
-     * Gets the error code.
+     * Gets the error code as integer value.
      *
-     * @return error code (OK if valid)
+     * @return error code (0 if valid, negative for input errors, positive for JSON errors)
      */
-    public ErrorCode getErrorCode() {
+    public int getErrorCode() {
+        return errorCode.getCode();
+    }
+
+    /**
+     * Gets the error code as enum.
+     *
+     * @return error code enum
+     */
+    public ErrorCode getErrorCodeEnum() {
         return errorCode;
     }
 
@@ -118,13 +148,58 @@ public final class ValidationResult {
     }
 
     /**
+     * Gets the line number where error occurred.
+     *
+     * @return line number (1-indexed), or 0 if unknown
+     */
+    public int getLine() {
+        return line;
+    }
+
+    /**
+     * Gets the column number where error occurred.
+     *
+     * @return column number (1-indexed), or 0 if unknown
+     */
+    public int getColumn() {
+        return column;
+    }
+
+    /**
+     * Gets the byte offset where error occurred.
+     *
+     * @return byte offset from start of JSON, or 0 if unknown
+     */
+    public long getByteOffset() {
+        return byteOffset;
+    }
+
+    /**
+     * Gets formatted error location string.
+     *
+     * @return formatted location (e.g., "at line 5, column 12") or empty if unknown
+     */
+    public String getErrorLocation() {
+        if (line > 0 && column > 0) {
+            return String.format("at line %d, column %d", line, column);
+        } else if (byteOffset > 0) {
+            return String.format("at byte offset %d", byteOffset);
+        }
+        return "";
+    }
+
+    /**
      * Throws exception if validation failed.
      *
      * @throws JsonValidationException if JSON is invalid
      */
     public void throwIfInvalid() throws JsonValidationException {
         if (!valid) {
-            throw new JsonValidationException(errorCode, errorMessage);
+            String fullMessage = errorMessage;
+            if (line > 0 && column > 0) {
+                fullMessage = String.format("%s at line %d, column %d", errorMessage, line, column);
+            }
+            throw new JsonValidationException(errorCode, fullMessage);
         }
     }
 
@@ -146,10 +221,21 @@ public final class ValidationResult {
     @Override
     public String toString() {
         if (valid) {
-            return "ValidationResult{valid=true}";
+            return "ValidationResult{status=valid}";
         } else {
-            return "ValidationResult{valid=false, errorCode=" + errorCode +
-                   ", errorMessage='" + errorMessage + "'}";
+            StringBuilder sb = new StringBuilder("ValidationResult{status=invalid, errorCode=")
+                    .append(errorCode.getCode())
+                    .append(", errorMessage='").append(errorMessage).append("'");
+
+            if (line > 0 && column > 0) {
+                sb.append(", line=").append(line)
+                  .append(", column=").append(column);
+            }
+            if (byteOffset > 0) {
+                sb.append(", byteOffset=").append(byteOffset);
+            }
+
+            return sb.append("}").toString();
         }
     }
 }

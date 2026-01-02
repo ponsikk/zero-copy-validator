@@ -3,6 +3,7 @@
 /// This module provides validators for checking field types, existence, and null values
 /// without parsing the entire JSON document (zero-copy).
 use crate::types::{max_json_size, JsonType};
+use ffi_safety_macro::ffi_safe;
 use simd_json::prelude::*;
 use std::slice;
 use std::str;
@@ -24,6 +25,7 @@ use std::str;
 /// # Returns
 /// * `true` - Field exists and has expected type
 /// * `false` - Field doesn't exist, has different type, or validation error
+#[ffi_safe]
 #[no_mangle]
 pub unsafe extern "C" fn json_validate_field_type(
     json_ptr: *const u8,
@@ -83,6 +85,7 @@ pub unsafe extern "C" fn json_validate_field_type(
 /// # Returns
 /// * `true` - Field exists (regardless of type or value)
 /// * `false` - Field doesn't exist or validation error
+#[ffi_safe]
 #[no_mangle]
 pub unsafe extern "C" fn json_field_exists(
     json_ptr: *const u8,
@@ -134,6 +137,7 @@ pub unsafe extern "C" fn json_field_exists(
 /// # Returns
 /// * `true` - Field exists AND is null
 /// * `false` - Field doesn't exist, is not null, or validation error
+#[ffi_safe]
 #[no_mangle]
 pub unsafe extern "C" fn json_field_is_null(
     json_ptr: *const u8,
