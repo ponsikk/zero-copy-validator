@@ -89,7 +89,7 @@ jobs:
         run: cargo bench --verbose
 
       - name: 📦 Upload native library artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: native-lib-${{ matrix.platform }}
           path: rust-ffi/target/release/${{ matrix.artifact }}
@@ -148,7 +148,7 @@ jobs:
       #     name: codecov-umbrella
 
       - name: 📦 Upload JAR artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: json-validator-jar
           path: target/*.jar
